@@ -1,0 +1,359 @@
+---
+title: "Homework 5"
+author: "Shreya Rao  sr3843"
+date: "6/7/2021"
+output: 
+  pdf_document:
+    latex_engine: xelatex
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(formatR)
+library(knitr)
+opts_chunk$set(tidy.opts=list(width.cutoff=60),tidy=TRUE)
+```
+
+
+# Part 1: Inverse Transform Method
+
+1. Let U be a uniform random variable over [0,1]. Find a transformation of U that allows you to simulate X from U. 
+
+\[
+f(x) = \frac{1}{\pi} \frac{1}{1-x^{2}} 
+\]
+\[F(x) = \int_{-\infty}^{x} \frac{1}{\pi} \frac{1}{1-x^{2}} \,dx = 
+\frac{arctan(x) + \frac{\pi}{2}}{\pi} \]
+\[u = \frac{arctan(x) + \frac{\pi}{2}}{\pi} \Rightarrow 
+x = tan-\left(\pi.u - \frac{\pi}{2}\right)\]
+
+
+2. Write a R function called cauchy.sim that generates n simulated Cauchy random variables. The function should have the single input n and should use the inverse transformation from Part 1. Test your function using 10 draws. 
+```{r}
+cauchy.sim <- function(n) {
+  u <- runif(n)
+  x <- tan(pi*u-(pi/2))
+  return(x)
+}
+cauchy.sim(10)
+```
+
+
+3. Using your function cauchy.sim, simulate 1000 random draws from a Cauchy distribution. Store the 1000 draws in the vector cauchy.draws. Construct a histogram of the simulated Cauchy random variable with fX(x) overlaid on the graph. Note: when plotting the density curve over the histogram, include the argument prob = T. Also note: the Cauchy distribution produces extreme outliers. I recommend plotting the histogram over the interval (−10, 10).
+
+```{r}
+cauchy.draws <- cauchy.sim(1000)
+
+hist(cauchy.draws[cauchy.draws > -10 & cauchy.draws < 10], prob = TRUE, main = "Histogram of Cauchy Draws", ylab = "f(x)", xlab = "x", ylim = c(0, 0.2))
+y <- seq(-10, 10, by = 0.01)
+cauchy.func <- function(x) { (1/pi)*(1/(1+x^2))}
+lines(y, cauchy.func(y), col = "purple")
+```
+
+
+
+# Part 2: Accept-Reject Method
+
+**Problem 2**
+
+4. Write a function f that takes as input a vector x and returns a vector of f(x) values. Plot the function between −3 and 3. Make sure your plot is labeled appropriately
+```{r}
+f <- function(x) {
+  f_x <- ifelse(x >= -1 & x <= 2, (1/9)*(4-x^2), 0)
+  return(f_x)
+}
+
+x <- seq(-3, 3, by = 0.01)
+plot(x, f(x), cex = 0.1)
+```
+
+
+5. Determine the maximum of f(x) and find an envelope function e(x) by using a uniform density for g(x). Write a function e which takes as input a vector x and returns a vector of e(x) values.
+
+\[ f(x) = \frac{1}{9} \left(4-x^{2}\right) \]
+\[ Maximum Value: f'(x) = 0 \Rightarrow 
+x = 0\]
+
+```{r}
+x.max = 0
+f.max = f(0)
+f.max
+
+e <- function(x) {
+  return(ifelse(x >= -1 & x <= 2, f.max, Inf))
+}
+```
+
+
+6. Using the Accept-Reject Algorithm, write a program that simulates 10,000 draws from the probability density function f(x) from Equation 1. Store your draws in the vector f.draws.
+
+```{r}
+n_samples <- 10000
+n <- 0
+
+f.draws <- numeric(n_samples)
+
+while(n < n_samples) {
+  #random draw from g
+  y <- runif(1, min=-1, max=2)
+  u <- runif(1)
+  if(u < f(y)/e(y)) {
+    n <- n + 1
+    f.draws[n] <- y
+  }
+}
+```
+
+
+7. Plot a histogram of your simulated data with the density function f overlaid in the graph. Label your plot appropriately.
+```{r}
+hist(f.draws, prob = T, ylab = "f(x)", xlab = "x", xlim = c(-2, 3), main = "Draws from f(x)")
+points(x, f(x), cex = 0.08, col = "blue")
+```
+
+
+**Problem 3: Accept-Reject Method Continued**
+
+
+8. Write a function f that takes as input a vector x and returns a vector of f(x) values. Plot the function between −5 and 5. Make sure your plot is labeled appropriately.
+
+```{r}
+f <- function(x) {
+  normal_f <- function(x) {
+    (1/sqrt(2*pi))*exp(-(1/2)*x^2)
+  }
+  return(normal_f(x))
+}
+
+x <- seq(-5, 5,  by = 0.01)
+plot(x, f(x), type = "l")
+```
+
+
+9. Let the known density g be the Cauchy density defined by pdf. 
+Write a function e that takes as input a vector x and constant alpha (0 < α < 1) and returns a vector of e(x) values. 
+
+```{r}
+e <- function(x, alpha) {
+  cauchy_f <- function(x) { 1/pi*(1/(1+x^2)) }
+  #return(ifelse(x >= -5 & x <= 5, cauchy_f(x)/alpha, Inf))
+  return(cauchy_f(x)/alpha)
+}
+```
+
+
+
+10. Determine a “good” value of α. You can solve this problem graphically. To show your solution, plot both f(x) and e(x) on the interval [−10, 10]. 
+
+```{r}
+x <- seq(-10, 10, 0.01)
+alphas <- seq(0.4, 0.8, by = 0.1)
+plot(x, f(x), cex = 0.4, ylim= c(0, 0.5))
+alpha_colors <- colors()[sample(2:657, length(alphas))]
+
+for(i in 1:length(alphas)) {
+  lines(x, e(x = x, alpha = alphas[i]), col = alpha_colors[i])
+}
+legend("topright", legend = alphas, fill = alpha_colors)
+```
+
+
+```{r}
+plot(x, f(x), cex = 0.4, ylim= c(0, 0.5))
+lines(x, e(x = x, alpha = 0.55), col = "green")
+```
+
+```{r}
+all(e(x = x, alpha = 0.55)>f(x))
+```
+0.55 seems like a good alpha value. 
+
+
+11. Write a function named normal.sim that simulates n standard normal random variables using the Accept-Reject Algorithm. The function should also use the InverseTransformation from Part 1. Test your function using n=10 draws
+
+```{r}
+normal.sim <- function(n) {
+  n_count <- 0
+  samples_normal <- numeric(n)
+  a <- 0.55
+  while(n_count < n) {
+    #random draw from g
+    y <- cauchy.sim(1)
+    u <- runif(1)
+    if(u < f(y)/e(x=y, alpha=a)) {
+      n_count <- n_count + 1
+      samples_normal[n_count] <- y
+    }
+  }
+  return(samples_normal)
+}
+
+normal.sim(10)
+```
+
+
+
+12. Using your function normal.sim, simulate 10,000 random draws from a standard normal distribution. Store the 10,000 draws in the vector normal.draws. Construct a histogram of the simulated standard normal random variable with f(x) overlaid on the graph. Note: when plotting the density curve over the histogram, include the argument prob = T.
+
+```{r}
+normal.draws <- normal.sim(10000)
+hist(normal.draws, prob = T)
+x <- seq(-5, 5,  by = 0.01)
+lines(x, f(x), col = "blue")
+```
+
+
+# Part 3: Simulation with Built-in R Functions
+
+13. Write a while() loop to implement this procedure. Importantly, save all the positive values of x that were visited in this procedure in a vector called x.vals, and display its entries.
+
+```{r}
+x.vals <- NULL
+x.vals[1] <- 5
+c <- 1
+while(x.vals[c] > 0) {
+  c = c + 1
+  x.vals[c] <- x.vals[c-1] + runif(1, min=-2, max=1)
+}
+
+x.vals
+```
+
+
+14. Produce a plot of the random walk values x.vals from above versus the iteration number. Make sure the plot has an appropriately labeled x-axis and and y-axis. Also use type="o" so that we can see both points and lines.
+
+```{r}
+plot(1:length(x.vals), x.vals, type = "o", xlab = "Interation")
+```
+
+
+15. Write a function random.walk() to perform the random walk procedure that you implemented in question (13). Its inputs should be: x.start, a numeric value at which we will start the random walk, which takes a default value of 5; and plot.walk, a boolean value, indicating whether or not we want to produce a plot of the random
+walk values x.vals versus the iteration number as a side effect, which takes a default value of TRUE. The output of your function should be a list with elements: x.vals, a vector of the random walk values as computed above; and num.steps, the number of steps taken by the random walk before terminating. Run your function twice with
+the default inputs, and then twice times with x.start equal to 10 and plot.walk = FALSE.
+
+```{r}
+x.start=5
+plot.walk=TRUE
+
+random.walk <- function(x.start=5, plot.walk=TRUE) {
+  x.vals <- NULL
+  x.vals[1] <- x.start
+  c <- 1
+  
+  while(x.vals[c] > 0) {
+    c = c + 1
+    x.vals[c] <- x.vals[c-1] + runif(1, min=-2, max=1)
+  }
+  
+  num_steps <- c
+  
+  if(plot.walk) {
+    plot(1:num_steps, x.vals, type = "o", xlab = "Iteration")
+  }
+  
+  return(list(Iterations=num_steps, RandomWalk.Value=x.vals))
+}
+
+random.walk()
+random.walk()
+
+random.walk(x.start = 10, plot.walk = FALSE)
+random.walk(x.start = 10, plot.walk = FALSE)
+```
+
+
+16. We’d like to answer the following question using simulation: if we start our random walk process, as defined above, at x = 5, what is the expected number of iterations we need until it terminates? To estimate the solution produce 10,000 such random walks and calculate the average number of iterations in the 10,000 random walks you produce. You’ll want to turn the plot off here.
+
+```{r}
+exp_iter <- rep(NA, 10000)
+for (i in 1:10000) {
+  temp_rw <- random.walk(x.start = 5, plot.walk = FALSE)
+  exp_iter[i] <- temp_rw$Iterations
+}
+
+#Expected number of iterations
+mean(exp_iter)
+```
+
+
+17. Modify your function random.walk() defined previously so that it takes an additional argument seed: this is an integer that should be used to set the seed of the random number generator, before the random walk begins, with set.seed(). But, if seed is NULL, the default, then no seed should be set. Run your modified function
+random.walk() function twice with the default inputs, then run it twice with the input seed equal to (say) 33 and plot.walk = FALSE.
+
+```{r}
+random.walk <- function(x.start=5, plot.walk=TRUE, seed = NULL) {
+  set.seed(seed)
+  
+  x.vals <- NULL
+  x.vals[1] <- x.start
+  c <- 1
+  
+  while(x.vals[c] > 0) {
+    c = c + 1
+    x.vals[c] <- x.vals[c-1] + runif(1, min=-2, max=1)
+  }
+  
+  num_steps <- c
+  
+  if(plot.walk) {
+    plot(1:num_steps, x.vals, type = "o", xlab = "Interation")
+  }
+  
+  return(list(Iterations=num_steps, RandomWalk.Value=x.vals))
+}
+
+random.walk()
+random.walk()
+random.walk(plot.walk = FALSE, seed = 33)
+random.walk(plot.walk = FALSE, seed = 33)
+```
+
+
+# Part 4: Monte Carlo Integration
+
+18. Run the following code:
+```{r}
+g <- function(x) {
+  return(exp(-x^3))
+}
+
+x <- seq(0,1,.01)
+alpha <- 2
+beta <- 2
+plot(x, g(x), type="l", xlab="x", ylab="", ylim=c(-.1,1.4))
+polygon(c(0, seq(0,1,0.01),1), c(0,g(seq(0,1,0.01)),0) ,col="pink")
+lines(x, rep(1,length(x)), col="red")
+lines(x, dbeta(x,shape1=alpha,shape2=beta), col="blue")
+legend("topleft", legend=c("g(x)","uniform","beta(2,2)"), lty=c(1,1,1), col=c("black","red","blue"), cex=.6)
+```
+
+
+19. Using Monte Carlo Integration, approximate the integral with n = 1000^2 random draws from the distribution uniform(0,1).
+
+```{r}
+n <- 1000^2
+g.x_over_unif <- function(x) {
+  return(exp(-x^3))
+}
+
+mean(g.x_over_unif(runif(n, min = 0, max = 1)))
+```
+
+
+20. Using Monte Carlo Integration, approximate the integral with n = 1000^2 random draws from the distribution beta(α = 2, β = 2).
+
+#Estimate \[\int g(x) \,dx\] by taking the sample mean of \[ \frac{g(x)}{p(x)}\] where \[ p(x) = 6x(x-1)\] and \[ \frac{g(x)}{p(x)} = \frac{e^{-x^3}}{6x(1-x)}\]
+
+```{r}
+# g.x_over_beta <- function(x) {
+#   return(exp(-x^3)/(6*x*(1-x)))
+# }
+# 
+# mean(g.x_over_beta(rbeta(n, shape1 = 2, shape2 = 2)))
+
+tgx <- function(x) {
+  return(exp(-x^3)/dbeta(x, shape1 = 2, shape2 = 2))
+}
+
+mean(tgx(rbeta(n, shape1 = 2, shape2 = 2)))
+```
+
