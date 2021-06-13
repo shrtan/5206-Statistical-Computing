@@ -1,4 +1,4 @@
-# Statistical-Computing-5206
+# 5206: Statistical Computing
 
 Lab 1: Common Distributions (norm, exp) Simulations  
 Lab 2: Bootstrap Linear Regression  
