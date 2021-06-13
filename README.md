@@ -1,6 +1,6 @@
 # Statistical-Computing-5206
 
-Lab 1: Common Distributions (norm, exp) Simulations
+Lab 1: Common Distributions (norm, exp) Simulations  
 Lab 2: Bootstrap Linear Regression
 Lab 3: Gradient Descent & Graphs
 Lab 4: KNN 
