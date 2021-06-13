@@ -1,0 +1,218 @@
+---
+title: "Homework 4: Introduction To Tidyverse"
+author: "Shreya Rao  sr3843"
+date: "June 1, 2021"
+output: pdf_document
+---
+
+```{r}
+knitr::opts_chunk$set(echo = TRUE)
+library(formatR)
+library(knitr)
+opts_chunk$set(tidy.opts=list(width.cutoff=60),tidy=TRUE)
+```
+
+
+# Instructions 
+
+Please submit both pdf and Rmd files (or html and Rmd files). 
+
+# Part II: Split/Apply/Combine and tidyverse warm-up
+
+This famous (Fisher's or Anderson's) iris data set gives the measurements in centimeters of the variables sepal length and width and petal length and width, respectively, for 50 flowers from each of 3 species of iris. The species are Iris setosa, versicolor, and virginica.
+
+Consider the following **loop** that computes the mean of each quantitative variable split by species and stores the computed means in a matrix named  **MeanFlowers**.  
+
+```{r}
+# define a matrix of zeros
+MeanFlowers <- matrix(0,nrow=4,ncol=3)
+
+# define a character vector corresponding to the numeric variable names
+measurements <- c("Sepal.Length","Sepal.Width","Petal.Length","Petal.Width")
+
+# name the rows and columns of the matrix MeanFlowers 
+rownames(MeanFlowers)  <- measurements
+colnames(MeanFlowers)  <- c("setosa","versicolor","virginica")
+
+# Loop
+for (j in measurements) {
+  #-- R code goes here ----
+  MeanFlowers[j,] <- round(tapply(iris[,j],iris[,"Species"],mean),4)
+}
+MeanFlowers
+```
+
+## Problem 1
+
+Replicate the above loop using the **Split/Apply/Combine** model with base R commands.
+
+```{r}
+mean_species <- function(df) {
+  return(apply(df[, c("Sepal.Length", "Sepal.Width", "Petal.Length", "Petal.Width")], 2, mean))
+}
+
+species <- split(iris, iris$Species)
+sapply(species, mean_species)
+```
+
+## Problem 2
+
+Repeat question 1 by constructing a pipe, including the **split()** function from base R and **map_df()** from the **purrr** package. 
+
+```{r}
+library(tidyverse)
+library(purrr)
+iris %>% split(.$Species) %>% map_df(mean_species, .id = "var") 
+```
+
+# Part II: More tidyverse with CDC cancer data
+
+Consider the Center of Disease Control data set **BYSITE_new.csv**, which describes the incidence and mortality counts of several types of cancer over time. The variables of interest are:  **YEAR**, **RACE**, **SITE**, **EVENT_TYPE**, **COUNT** and **POPULATION**.  
+
+## Problem 3
+
+Load in the dataset **BYSITE_new.csv** using the appropriate function from the **readr** package. Display the dimension of the cancer tibble.
+
+
+```{r}
+library(readr)
+cancer <- read_csv("BYSITE_new.csv")
+dim(cancer)
+cancer_rows <- nrow(cancer)
+```
+
+Base R code for reference.
+```{r}
+# Base R code for reference
+# cancer <- read.csv("BYSITE_new.csv",header=T)
+# dim(cancer)
+```
+
+
+## Problem 4
+
+Using Base R or tydyverse functions, identify any strange symbols that are recorded in the **COUNT** variable. Once you have identified the symbols, use functions from the **dplyr** package to remove any rows in the cancer tibble containing these symbols and then convert **COUNT** to a numeric mode. 
+
+
+```{r}
+library(stringr)
+#identifying rows in COUNT with symbols
+problems <- cancer$COUNT[grepl(pattern = "[^0-9]", cancer$COUNT)]
+head(problems)
+length(problems)
+
+#replace all symbols with " "
+cancer$COUNT <- str_replace(cancer$COUNT, pattern = "[^0-9]", replacement = " ")
+
+#remove rows with symbols
+cancer <- cancer %>% filter(COUNT != " ")
+
+#calculating number of rows in new cancer df
+new_rows <- nrow(cancer)
+new_rows
+#new cancer rows must be equal to (old rows - problem rows)
+cancer_rows-length(problems)
+
+#converting COUNT to numeric type
+cancer$COUNT <- as.numeric(cancer$COUNT)
+
+head(cancer)
+```
+
+
+## Problem 5
+
+For a specific tumor and population, a crude rate is calculated by dividing the number of new cancers observed during a given time period by the corresponding number of people in the population at risk. For cancer, the result is usually expressed as an annual rate per 100,000 persons at risk. https://ci5.iarc.fr/ci5plus/pages/glossary.aspx
+
+In reference to our data, this quantity can be calculated by: 
+\[
+\text{CRUDE RATE} = 100000*\frac{\text{COUNT}}{\text{POPULATION}}
+\]
+
+Using relevant functions from the **dplyr** package, create a new variable in your dataframe (or tibble) called **CRUDE_RATE**.  Then using base R graphics or ggplot, create a histogram of **CRUDE_RATE**.  Note that the crude rates are not bounded between [0,1] because they are calculated per 100,000 persons at risk. 
+
+```{r}
+cancer <- cancer %>% mutate(CRUDE_RATE =  100000*COUNT/as.numeric(POPULATION))
+
+cancer %>% ggplot() + geom_histogram(aes(CRUDE_RATE), bins = 30, col=1, fill = "blue")
+```
+
+
+## Problem 6
+
+Compute the average incidence rate of prostate cancer for each level of **RACE**.  To solve this problem, students must build a pipe (**magrittr** package) and utilize the appropriate functions from the **dplyr** package. Also compare your results to a base R solution. Include both the tidyverse and base R solutions in your final write-up. **Note:** before computing the average incidence rates, students should filter the data as follows:
+\begin{enumerate}
+\item[i.] Extract the rows corresponding to {\bf EVENT\_TYPE} level {\bf Incidence}
+\item[ii.] Extract the rows corresponding to {\bf SITE} level {\bf Prostate}
+\item[iii.] Extract the rows corresponding to {\bf SEX} level {\bf Male}
+\item[iv.] Remove the rows corresponding to {\bf YEAR} level {\bf 2010-2014}
+\item[v.] Remove the rows corresponding to {\bf RACE} level {\bf All Races} 
+\end{enumerate} 
+
+
+First filter the dataset: 
+
+```{r}
+#Base R
+filter_baseR <- cancer[cancer$EVENT_TYPE == "Incidence" & cancer$SITE == "Prostate" & cancer$SEX == "Male" & cancer$YEAR != "2010-2014" & cancer$RACE != "All Races", ]
+
+#dplyr
+filter_dp <- cancer %>% filter(EVENT_TYPE == "Incidence", SITE == "Prostate", SEX == "Male", YEAR != "2010-2014", RACE != "All Races")
+```
+
+Compute the average incidence rate of prostate cancer for each level of **RACE**.
+
+```{r}
+#Base R
+mean_race_baseR <- tapply(filter_baseR$CRUDE_RATE, filter_baseR$RACE, mean)
+mean_race_baseR
+
+#tidyverse
+mean_race_dp <- filter_dp %>% group_by(RACE) %>% summarise(avg_incidence_rate = mean(CRUDE_RATE))
+mean_race_dp
+```
+
+## Problem 7
+
+Create a plot in base R or ggplot that shows the incidence rate (**CRUDE_RATE**) as a function of time (**YEAR**), split by the levels of **RACE**. Make sure to include a legend and label the graphic appropriately. Before constructing the graphic, perform the data wrangling tasks using a pipe and functions from the **dplyr** package, i.e., the same filtering tasks from problem 6. Students can use some base R functions in the pipe if needed and the plotting code can be included inside or outside the pipe.  
+
+```{r}
+graph_base <- cancer %>% filter(EVENT_TYPE == "Incidence", SITE == "Prostate", SEX == "Male", YEAR != "2010-2014", RACE != "All Races") %>% ggplot() + geom_point(aes(x = YEAR, y = CRUDE_RATE, col = RACE)) + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) + labs(y = "Incidence (Crude) Rate", x = "Year")
+graph_base
+```
+
+## Problem 8
+
+Fit five simple linear regression models, one for each level of **RACE**, relating the incidence rate (**CRUDE_RATE**) as a function of time (**YEAR**). Collect the estimated slopes, t-statistics and  p-values of your estimated models. The collection of slopes describe whether cancer has increased or decreased over the selected time period and the p-values describe if the increase or decrease is statistically significant. Solve this problem using a pipe and functions from the **dplyr** and **purrr** packages. **Note:** use the same filtered data from problem 4 and problem 4 in this analysis. 
+
+**Some hints:** (i) this exercise is a natural extension of problem 7; (ii) if needed, students can also define their own functions used in the pipe; (iii) students are not required to use a single pipe to solve this question but it's a fun challenge if interested.
+
+
+```{r}
+summaries <- filter_dp %>% split(.$RACE) %>% map(~lm(CRUDE_RATE~as.numeric(YEAR), data = .)) %>% map(summary) %>% map(coefficients)
+
+lm_slopes <- matrix(ncol=3,nrow=5) 
+for(i in 1:length(summaries)) {
+  lm_slopes[i,] <- summaries[[i]][2, c(1, 3, 4)]
+}
+rownames(lm_slopes) <- names(summaries)
+colnames(lm_slopes) <- c("Slope Estimate", "t value", "p-value")
+lm_slopes
+```
+```{r}
+# The slopes all indicate that cancer rates have decreased over the years, with rates in the White group showing the steepest slope. 
+# The p-values indicate that the decrease is statistically significant for all races expect for that of Black. (assuming the significance level alpha is set at 0.05)
+```
+
+```{r}
+#plot of regression lines
+legend <- rep(NA, 5)
+plot(y=filter_baseR$CRUDE_RATE, x=filter_baseR$YEAR, 
+     col = as.factor(filter_baseR$RACE), xlab = "Year", ylab = "Incidence Rate")
+for(i in 1:length(summaries)) {
+  abline(a = summaries[[i]][1, 1], b = summaries[[i]][2, 1], col = i)
+  legend[i] <- names(summaries)[i]
+}
+legend("left", legend = legend, fill = unique(as.factor(filter_baseR$RACE)), cex = 0.75)
+```
+
